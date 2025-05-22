@@ -8,6 +8,42 @@ BACKGROUND_COLOR = (8, 14, 23)
 WINDOW_WIDTH, WINDOW_HEIGHT = 1280, 720
 
 
+# sprites
+class Player(pygame.sprite.Sprite):
+    def __init__(self, groups):
+        super().__init__(groups)
+        self.image = pygame.image.load(
+            join("src", "images", "player_a.png")
+        ).convert_alpha()
+        self.rect = self.image.get_frect(center=(WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2))
+        self.direction = pygame.math.Vector2()
+        self.speed = 300
+
+    def update(self, delta_time):
+        # player movement
+        keys = pygame.key.get_pressed()
+        self.direction.x = int(keys[pygame.K_RIGHT]) - int(keys[pygame.K_LEFT])
+        self.direction.y = int(keys[pygame.K_DOWN]) - int(keys[pygame.K_UP])
+        self.direction = (
+            self.direction.normalize() if self.direction else self.direction
+        )
+        self.rect.center += self.direction * self.speed * delta_time
+
+        # player actions
+        recent_keys = pygame.key.get_just_pressed()
+        if recent_keys[pygame.K_SPACE]:
+            print("shot!")
+
+
+class Star(pygame.sprite.Sprite):
+    def __init__(self, groups, image):
+        super().__init__(groups)
+        self.image = image
+        self.rect = self.image.get_frect(
+            center=(randint(0, WINDOW_WIDTH - 64), randint(0, WINDOW_HEIGHT - 64))
+        )
+
+
 # general setup
 pygame.init()
 pygame.display.set_caption("Space Shooter")
@@ -16,11 +52,20 @@ display_surface = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
 is_running, clock = True, pygame.time.Clock()
 
 
-# load player
-player = pygame.image.load(join("src", "images", "player_a.png")).convert_alpha()
-player_rect = player.get_frect(center=(WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2))
-player_direction = pygame.math.Vector2()
-player_speed = 300
+# asset imports
+star_a = pygame.image.load(join("src", "images", "star_a.png")).convert_alpha()
+star_b = pygame.image.load(join("src", "images", "star_b.png")).convert_alpha()
+star_a.set_alpha(50)
+star_b.set_alpha(50)
+
+# sprite groups
+all_sprites = pygame.sprite.Group()
+
+
+# create sprites
+for i in range(20):
+    Star(all_sprites, star_a) if i % 2 == 0 else Star(all_sprites, star_b)
+player = Player(all_sprites)
 
 
 # load laser
@@ -35,16 +80,6 @@ meteor = pygame.image.load(join("src", "images", "meteor_f.png")).convert_alpha(
 meteor_rect = meteor.get_frect(topleft=(20, 20))
 
 
-# load stars
-star_small = pygame.image.load(join("src", "images", "star_a.png")).convert_alpha()
-star_large = pygame.image.load(join("src", "images", "star_b.png")).convert_alpha()
-star_small.set_alpha(50)
-star_large.set_alpha(50)
-star_positions = [
-    (randint(0, WINDOW_WIDTH - 64), randint(0, WINDOW_HEIGHT - 64)) for _ in range(20)
-]
-
-
 # main game loop
 while is_running:
     # fps
@@ -57,24 +92,14 @@ while is_running:
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
             is_running = False
 
-    # player inputs
-    keys = pygame.key.get_pressed()
-    player_direction.x = int(keys[pygame.K_RIGHT]) - int(keys[pygame.K_LEFT])
-    player_direction.y = int(keys[pygame.K_DOWN]) - int(keys[pygame.K_UP])
-    player_direction = (
-        player_direction.normalize() if player_direction else player_direction
-    )
-    player_rect.center += player_direction * player_speed * delta_time
+    # update sprites
+    all_sprites.update(delta_time)
 
-    # render the game
+    # render game
     display_surface.fill(BACKGROUND_COLOR)
-    for i, pos in enumerate(star_positions):
-        display_surface.blit(star_small if i % 2 == 0 else star_large, pos)
+    all_sprites.draw(display_surface)
 
-    display_surface.blit(meteor, meteor_rect)
-    display_surface.blit(laser, laser_rect)
-    display_surface.blit(player, player_rect)
-
+    # update display
     pygame.display.update()
 
 
